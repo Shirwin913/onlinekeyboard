@@ -145,7 +145,15 @@
         <div id="piano" class="piano-container"></div>
       </div>
       <button id="add-piano-btn">新增鋼琴鍵盤</button>
+      <input type="file" id="midi-upload" accept=".mid,.midi" />
+      <button id="manual-play-btn">手動播放模式</button>
+      <button id="midi-play-btn">播放 MIDI</button>
+      <button id="midi-pause-btn">暫停</button>
+      <button id="midi-resume-btn">繼續</button>
+      <button id="midi-stop-btn">停止</button>
     </div>
-    <script src="paino.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.js"></script>
+
+    <script type="module" src="./js/main.js"></script>
   </body>
 </html>
