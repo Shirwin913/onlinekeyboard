@@ -1,4 +1,4 @@
-import { renderPiano } from "./pianoRenderer.js";
+import { renderPiano, updateLatestMidiInputs } from "./pianoRenderer.js";
 import {
   loadAudioFilesForSound,
   playSound,
@@ -21,6 +21,8 @@ import {
 } from "./midiPlayer.js";
 
 let pianoCount = 1;
+let midiAccess = null;
+let midiInputs = [];
 const midiDeviceSettings = {};
 let currentMidiData = null;
 
@@ -87,7 +89,7 @@ function setupKeyboardControl() {
   });
 }
 
-function addPiano(inputs) {
+function addPiano() {
   pianoCount++;
   const pid = `piano${pianoCount}`;
   const container = document.createElement("div");
@@ -95,7 +97,8 @@ function addPiano(inputs) {
   container.classList.add("piano-container");
   document.getElementById("piano-container").appendChild(container);
 
-  renderPiano(container, pid, inputs);
+  renderPiano(container, pid, midiInputs);
+
   container.addEventListener("pointerdown", () => {
     activeKeyboardTargetId = pid;
   });
@@ -142,11 +145,40 @@ function cleanupPianoState(pid) {
   removePianoFromDevices(pid);
 }
 
+async function updateMidiInputs() {
+  midiInputs = Array.from(midiAccess.inputs.values());
+}
+
+function updateAllMidiSelects() {
+  document.querySelectorAll('select[id^="midi-select-"]').forEach((select) => {
+    const pid = select.id.replace("midi-select-", "");
+    const previousValue = select.value;
+
+    select.innerHTML = `<option value="-1">All Inputs</option>`;
+    midiInputs.forEach((input, i) => {
+      const option = document.createElement("option");
+      option.value = i;
+      option.textContent = input.name;
+      select.appendChild(option);
+    });
+
+    if (previousValue >= 0 && previousValue < midiInputs.length) {
+      select.value = previousValue;
+    } else {
+      select.value = -1;
+    }
+  });
+}
+
 async function main() {
   try {
-    const midiAccess = await navigator.requestMIDIAccess();
-    const inputs = [...midiAccess.inputs.values()];
-    renderPiano(document.getElementById("piano"), "piano", inputs);
+    midiAccess = await navigator.requestMIDIAccess();
+    await updateMidiInputs();
+
+    renderPiano(document.getElementById("piano"), "piano", midiInputs);
+
+    // ⭐ 更新 pianoRenderer 裡的 midiInputs
+    updateLatestMidiInputs(midiInputs);
 
     document
       .querySelector(`#auto-play-piano`)
@@ -160,10 +192,19 @@ async function main() {
 
     document
       .getElementById("add-piano-btn")
-      .addEventListener("click", () => addPiano(inputs));
+      .addEventListener("click", () => addPiano());
+
     document.getElementById("piano").addEventListener("pointerdown", () => {
       activeKeyboardTargetId = "piano";
     });
+
+    // 🔥 裝置插拔
+    midiAccess.onstatechange = async (e) => {
+      console.log("MIDI 裝置變化:", e.port.name, e.port.state);
+      await updateMidiInputs();
+      updateAllMidiSelects();
+      updateLatestMidiInputs(midiInputs); // ⭐ 同步更新 pianoRenderer 的裝置列表
+    };
 
     setupKeyboardControl();
   } catch (err) {
@@ -179,10 +220,7 @@ document.getElementById("midi-upload").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (file) {
     currentMidiData = await parseMidiFile(file);
-
-    // ===== 關鍵：載入時就設定 currentMidi 和 pianoTarget =====
     setCurrentMidiAndTarget(currentMidiData, "piano");
-
     alert("MIDI 檔案載入完成！");
   }
 });

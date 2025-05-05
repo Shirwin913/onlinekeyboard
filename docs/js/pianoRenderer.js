@@ -8,6 +8,9 @@ import {
 import { availableSounds, layout, noteMapping } from "./utils/constants.js";
 import { listenEvent } from "./midiManager.js";
 
+// 這個變數會隨時更新
+let latestMidiInputs = [];
+
 function togglePianoKeys(pid, enabled) {
   const keys = document.querySelectorAll(
     `#${pid} .white-key, #${pid} .black-key`
@@ -16,6 +19,9 @@ function togglePianoKeys(pid, enabled) {
 }
 
 function renderPiano(container, pid, midiInputs) {
+  // 保存最新裝置列表
+  latestMidiInputs = midiInputs;
+
   if (!soundSettings[pid]) {
     soundSettings[pid] = {
       sound: availableSounds[0],
@@ -72,7 +78,9 @@ function renderPiano(container, pid, midiInputs) {
       stopSound(num, pid);
     });
     key.addEventListener("pointerleave", () => key.classList.remove("pressed"));
-    key.addEventListener("pointercancel", () => key.classList.remove("pressed"));
+    key.addEventListener("pointercancel", () =>
+      key.classList.remove("pressed")
+    );
   });
 
   container
@@ -100,11 +108,13 @@ function renderPiano(container, pid, midiInputs) {
       }
     });
 
+  // MIDI 裝置選擇
   container
     .querySelector(`#midi-select-${pid}`)
     .addEventListener("change", (e) => {
       const midiIndex = parseInt(e.target.value);
-      listenEvent(midiInputs, midiIndex, pid);
+      // 🔥 使用最新的 midiInputs（不再用傳進來的舊 midiInputs）
+      listenEvent(latestMidiInputs, midiIndex, pid);
     });
 
   container.querySelector(`#sustain-${pid}`).addEventListener("click", (e) => {
@@ -123,4 +133,9 @@ function renderPiano(container, pid, midiInputs) {
   });
 }
 
-export { renderPiano };
+// 新增一個函式，讓 main.js 可以更新最新的 midiInputs
+function updateLatestMidiInputs(newInputs) {
+  latestMidiInputs = newInputs;
+}
+
+export { renderPiano, updateLatestMidiInputs };
