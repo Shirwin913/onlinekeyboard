@@ -192,29 +192,46 @@ function prepareManualTimeList() {
   manualTimeList = Array.from(times).sort((a, b) => a - b);
 }
 
+let previousManualNotes = []; // 紀錄上次播放的音符
+
 function manualPlayNextNote(velocity) {
   if (!currentMidi || !pianoTarget) return;
   if (manualTimeList.length === 0) prepareManualTimeList();
   if (manualTimeIndex >= manualTimeList.length) manualTimeIndex = 0;
+
   const targetTime = manualTimeList[manualTimeIndex++];
+
+  // ---- 1️⃣ 先停止上一次的音 ----
+  previousManualNotes.forEach((midiNumber) => {
+    stopSound(midiNumber, pianoTarget);
+    const keyEl = document.querySelector(
+      `#${pianoTarget} [data-number="${midiNumber}"]`
+    );
+    if (keyEl) keyEl.classList.remove("pressed");
+  });
+  previousManualNotes = [];
+
+  // ---- 2️⃣ 播放這次的音 ----
   const notesToPlay = [];
   currentMidi.tracks.forEach((track) => {
     track.notes.forEach((note) => {
       if (note.time === targetTime) notesToPlay.push(note);
     });
   });
+
   notesToPlay.forEach((note) => {
     const midiNumber = note.midi;
     const actualVelocity = Math.min(velocity * globalVelocityMultiplier, 127);
-    stopSound(midiNumber, pianoTarget);
+
     playSound(midiNumber, pianoTarget, actualVelocity);
+
     const keyEl = document.querySelector(
       `#${pianoTarget} [data-number="${midiNumber}"]`
     );
-    if (keyEl) {
-      keyEl.classList.add("pressed");
-      setTimeout(() => keyEl.classList.remove("pressed"), 200);
-    }
+    if (keyEl) keyEl.classList.add("pressed");
+
+    // 把這次播放的音記錄起來，下一次會停止這些音
+    previousManualNotes.push(midiNumber);
   });
 }
 
@@ -233,6 +250,20 @@ function setCurrentMidiAndTarget(midi, pianoId) {
   prepareManualTimeList();
 }
 
+function stopManualNotes() {
+  previousManualNotes.forEach((midiNumber) => {
+    // 延遲 0.5 秒再停止
+    setTimeout(() => {
+      stopSound(midiNumber, pianoTarget);
+      const keyEl = document.querySelector(
+        `#${pianoTarget} [data-number="${midiNumber}"]`
+      );
+      if (keyEl) keyEl.classList.remove("pressed");
+    }, 110); // 500ms 延遲
+  });
+  previousManualNotes = [];
+}
+
 export {
   parseMidiFile,
   playMidi,
@@ -245,4 +276,5 @@ export {
   setManualPlayMode,
   isManualPlayMode,
   setCurrentMidiAndTarget,
+  stopManualNotes,
 };
