@@ -4,6 +4,8 @@ import {
   manualPlayNextNote,
   isManualPlayMode,
   stopManualNotes,
+  setManualTriggerKey,
+  getManualTriggerKey,
 } from "./midiPlayer.js";
 
 import { playSound, stopSound } from "./audioManager.js";
@@ -29,7 +31,8 @@ function onMIDIMessage(event, pianoId) {
 
       if (!manualPlayLock) {
         manualPlayLock = true;
-        manualPlayNextNote(velocity);
+        manualPlayNextNote(velocity, note);  // ⭐ 傳入是哪顆鍵觸發
+        setManualTriggerKey(note);           // ⭐ 記錄這次是哪顆鍵
         manualPlayLockTimeout = setTimeout(() => {
           manualPlayLock = false;
         }, 100);
@@ -39,7 +42,15 @@ function onMIDIMessage(event, pianoId) {
 
     if (status === 128 || (status === 144 && velocity === 0)) {
       console.log("Note Off received in manual mode");
-      stopManualNotes();
+
+      // ⭐ 只有當放開的鍵是觸發鍵，才停止音
+      if (note === getManualTriggerKey()) {
+        console.log("Stop manual notes because trigger key released");
+        stopManualNotes();
+        setManualTriggerKey(null); // 重置
+      } else {
+        console.log("Different key released, do nothing.");
+      }
       return;
     }
   }

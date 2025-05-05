@@ -1,4 +1,6 @@
 import { playSound, stopSound } from "./audioManager.js";
+let previousManualNotes = []; // 紀錄上次播放的音符
+let previousTriggerKey = null; // ⭐ 新增：記錄哪顆鍵觸發
 
 let currentMidi = null;
 let pianoTarget = null;
@@ -192,9 +194,8 @@ function prepareManualTimeList() {
   manualTimeList = Array.from(times).sort((a, b) => a - b);
 }
 
-let previousManualNotes = []; // 紀錄上次播放的音符
 
-function manualPlayNextNote(velocity) {
+function manualPlayNextNote(velocity, triggeringNote) {
   if (!currentMidi || !pianoTarget) return;
   if (manualTimeList.length === 0) prepareManualTimeList();
   if (manualTimeIndex >= manualTimeList.length) manualTimeIndex = 0;
@@ -230,10 +231,13 @@ function manualPlayNextNote(velocity) {
     );
     if (keyEl) keyEl.classList.add("pressed");
 
-    // 把這次播放的音記錄起來，下一次會停止這些音
     previousManualNotes.push(midiNumber);
   });
+
+  // ⭐ 紀錄這次是哪顆鍵觸發
+  previousTriggerKey = triggeringNote;
 }
+
 
 function setManualPlayMode(mode) {
   manualPlayMode = mode;
@@ -264,6 +268,14 @@ function stopManualNotes() {
   previousManualNotes = [];
 }
 
+function setManualTriggerKey(note) {
+  previousTriggerKey = note;
+}
+
+function getManualTriggerKey() {
+  return previousTriggerKey;
+}
+
 export {
   parseMidiFile,
   playMidi,
@@ -277,4 +289,6 @@ export {
   isManualPlayMode,
   setCurrentMidiAndTarget,
   stopManualNotes,
+  setManualTriggerKey,
+  getManualTriggerKey,
 };
