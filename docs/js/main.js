@@ -18,6 +18,8 @@ import {
   setCurrentMidiAndTarget,
   setManualPlayMode,
   isManualPlayMode,
+  manualPlayNextNote, // ⭐ 要加
+  stopManualNotes, // ⭐ 要加
 } from "./midiPlayer.js";
 
 let pianoCount = 1;
@@ -52,6 +54,7 @@ let octaveOffset = 4;
 function setupKeyboardControl() {
   window.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
+
     if (key === "arrowup") {
       if (octaveOffset < 7) octaveOffset++;
       return;
@@ -62,9 +65,16 @@ function setupKeyboardControl() {
     }
     if (activeKeys.has(key)) return;
 
+    if (isManualPlayMode()) {
+      manualPlayNextNote(127, key); // ⭐ 把 key 傳進去
+      activeKeys.add(key);
+      return;
+    }
+
     const noteOffset = keyToNoteOffset[key];
     if (noteOffset !== undefined) {
       const note = 12 * octaveOffset + noteOffset;
+
       const el = document.querySelector(
         `#${activeKeyboardTargetId} [data-number="${note}"]`
       );
@@ -76,9 +86,17 @@ function setupKeyboardControl() {
 
   window.addEventListener("keyup", (e) => {
     const key = e.key.toLowerCase();
+
+    if (isManualPlayMode()) {
+      stopManualNotes(key); // ⭐ 只停止這個 key 的音
+      activeKeys.delete(key);
+      return;
+    }
+
     const noteOffset = keyToNoteOffset[key];
     if (noteOffset !== undefined) {
       const note = 12 * octaveOffset + noteOffset;
+
       const el = document.querySelector(
         `#${activeKeyboardTargetId} [data-number="${note}"]`
       );

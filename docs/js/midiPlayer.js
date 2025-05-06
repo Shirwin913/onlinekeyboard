@@ -194,9 +194,16 @@ function prepareManualTimeList() {
   manualTimeList = Array.from(times).sort((a, b) => a - b);
 }
 
-
 function manualPlayNextNote(velocity, triggeringNote) {
-  if (!currentMidi || !pianoTarget) return;
+  if (!currentMidi) {
+    alert("請先載入 MIDI 檔！");
+    return;
+  }
+  if (!pianoTarget) {
+    alert("沒有找到目標鋼琴！");
+    return;
+  }
+
   if (manualTimeList.length === 0) prepareManualTimeList();
   if (manualTimeIndex >= manualTimeList.length) manualTimeIndex = 0;
 
@@ -220,6 +227,10 @@ function manualPlayNextNote(velocity, triggeringNote) {
     });
   });
 
+  if (notesToPlay.length === 0) {
+    alert("找不到下一個音符，可能是 MIDI 檔案太短或已播放完。");
+  }
+
   notesToPlay.forEach((note) => {
     const midiNumber = note.midi;
     const actualVelocity = Math.min(velocity * globalVelocityMultiplier, 127);
@@ -237,7 +248,6 @@ function manualPlayNextNote(velocity, triggeringNote) {
   // ⭐ 紀錄這次是哪顆鍵觸發
   previousTriggerKey = triggeringNote;
 }
-
 
 function setManualPlayMode(mode) {
   manualPlayMode = mode;
