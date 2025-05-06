@@ -97,7 +97,7 @@ function renderPiano(container, pid, midiInputs) {
       togglePianoKeys(pid, true);
 
       const sustainBtn = container.querySelector(`#sustain-${pid}`);
-      if (sound === "cello") {
+      if (sound === "cello" || sound === "cello-1") {
         soundSettings[pid].sustain = true;
         sustainBtn.style.display = "none";
       } else {

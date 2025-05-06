@@ -1,4 +1,4 @@
-export const availableSounds = ["piano", "pipeorgan", "cello"];
+export const availableSounds = ["piano", "pipeorgan", "cello", "cello-1"];
 
 export const layout = [
   [0, false],

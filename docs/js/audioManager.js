@@ -28,10 +28,25 @@ async function loadAudioFilesForSound(pid, sound) {
   if (!sharedBuffers[sound]) {
     sharedBuffers[sound] = new Map();
     const promises = Object.entries(noteMapping).map(async ([note, num]) => {
-      const res = await fetch(`./samples/${sound}/piano_${note}.wav`);
-      const ab = await res.arrayBuffer();
-      const buf = await audioCtx.decodeAudioData(ab);
-      sharedBuffers[sound].set(num, buf);
+      let ext = "mp3";
+      if (
+        sound === "piano" ||
+        sound === "pipeorgan" ||
+        sound === "cello" ||
+        sound === "cello-1"
+      ) {
+        ext = "wav";
+      }
+      try {
+        const res = await fetch(`./samples/${sound}/piano_${note}.${ext}`);
+        if (!res.ok) throw new Error(`找不到檔案 piano_${note}.${ext}`);
+        const ab = await res.arrayBuffer();
+        const buf = await audioCtx.decodeAudioData(ab);
+        sharedBuffers[sound].set(num, buf);
+      } catch (e) {
+        console.warn(`載入 ${sound} 的 piano_${note}.${ext} 失敗：`, e);
+        // 沒有這個音就跳過
+      }
     });
     await Promise.all(promises);
   }
@@ -86,16 +101,14 @@ function stopSound(note, pid) {
     const { src, gainNode } = obj;
 
     try {
-      const fadeTime = 0.1; // 100ms fade-out
+      const fadeTime = 0.3; // 100ms fade-out
       const now = audioCtx.currentTime;
 
       if (gainNode) {
-        // 防止從 0 開始 exponential ramp（會報錯）
         const startGain = Math.max(gainNode.gain.value, 0.0001);
         gainNode.gain.setValueAtTime(startGain, now);
         gainNode.gain.exponentialRampToValueAtTime(0.0001, now + fadeTime);
-
-        src.stop(now + fadeTime + 0.02); // 稍微延遲
+        src.stop(now + fadeTime + 0.02);
       } else {
         src.stop();
       }
@@ -110,7 +123,6 @@ function stopSound(note, pid) {
 function findZeroCrossing(buffer, startTime, searchWidth = 0.5) {
   const channelData = buffer.getChannelData(0);
   const sampleRate = buffer.sampleRate;
-
   const startSample = Math.floor(startTime * sampleRate);
   const endSample = Math.min(
     channelData.length - 1,
@@ -185,20 +197,15 @@ function stopPolyCelloNote(note, pid) {
   ["A", "B"].forEach((k) => {
     if (nodes[k]) {
       const { src, gain } = nodes[k];
-
       try {
-        const fadeTime = 0.1; // 100ms
+        const fadeTime = 0.1;
         const now = audioCtx.currentTime;
 
-        // 防止起始值為 0（exponential ramp 不接受 0）
         const startGain = Math.max(gain.gain.value, 0.0001);
         gain.gain.setValueAtTime(startGain, now);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + fadeTime);
-
-        // 設定 stop 時間，等 fade 結束後
         src.stop(now + fadeTime + 0.02);
       } catch (e) {
-        // 如果 stop 失敗就硬切
         try {
           src.stop();
         } catch {}
