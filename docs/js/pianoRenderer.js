@@ -8,6 +8,13 @@ import {
 import { availableSounds, layout, noteMapping } from "./utils/constants.js";
 import { listenEvent } from "./midiManager.js";
 
+// ⭐ 新增：引入手動播放的功能
+import {
+  isManualPlayMode,
+  manualPlayNextNote,
+  stopManualNotes,
+} from "./midiPlayer.js";
+
 // 這個變數會隨時更新
 let latestMidiInputs = [];
 
@@ -69,18 +76,36 @@ function renderPiano(container, pid, midiInputs) {
 
   container.querySelectorAll(".white-key, .black-key").forEach((key) => {
     const num = Number(key.dataset.number);
+
     key.addEventListener("pointerdown", () => {
-      key.classList.add("pressed");
-      playSound(num, pid, 127);
+      if (isManualPlayMode()) {
+        // ⭐ 手動播放：不變色，只觸發下一組音符
+        manualPlayNextNote(127, num);
+      } else {
+        // 一般播放：變色+播放音
+        key.classList.add("pressed");
+        playSound(num, pid, 127);
+      }
     });
+
     key.addEventListener("pointerup", () => {
-      key.classList.remove("pressed");
-      stopSound(num, pid);
+      if (isManualPlayMode()) {
+        // 手動播放：停止這組音符
+        stopManualNotes();
+      } else {
+        // 一般播放：移除變色+停止音
+        key.classList.remove("pressed");
+        stopSound(num, pid);
+      }
     });
-    key.addEventListener("pointerleave", () => key.classList.remove("pressed"));
-    key.addEventListener("pointercancel", () =>
-      key.classList.remove("pressed")
-    );
+
+    // 防止滑鼠離開還保留 pressed 樣式（一般模式有效）
+    key.addEventListener("pointerleave", () => {
+      if (!isManualPlayMode()) key.classList.remove("pressed");
+    });
+    key.addEventListener("pointercancel", () => {
+      if (!isManualPlayMode()) key.classList.remove("pressed");
+    });
   });
 
   container
@@ -97,7 +122,7 @@ function renderPiano(container, pid, midiInputs) {
       togglePianoKeys(pid, true);
 
       const sustainBtn = container.querySelector(`#sustain-${pid}`);
-      if (sound === "cello") {
+      if (sound === "cello" || sound === "cello-1") {
         soundSettings[pid].sustain = true;
         sustainBtn.style.display = "none";
       } else {
@@ -113,7 +138,6 @@ function renderPiano(container, pid, midiInputs) {
     .querySelector(`#midi-select-${pid}`)
     .addEventListener("change", (e) => {
       const midiIndex = parseInt(e.target.value);
-      // 🔥 使用最新的 midiInputs（不再用傳進來的舊 midiInputs）
       listenEvent(latestMidiInputs, midiIndex, pid);
     });
 

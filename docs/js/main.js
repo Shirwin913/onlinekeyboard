@@ -18,6 +18,10 @@ import {
   setCurrentMidiAndTarget,
   setManualPlayMode,
   isManualPlayMode,
+  manualPlayNextNote,
+  stopManualNotes,
+  setManualTriggerKey, // ⭐ 要加
+  getManualTriggerKey, // ⭐ 要加
 } from "./midiPlayer.js";
 
 let pianoCount = 1;
@@ -52,6 +56,7 @@ let octaveOffset = 4;
 function setupKeyboardControl() {
   window.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
+
     if (key === "arrowup") {
       if (octaveOffset < 7) octaveOffset++;
       return;
@@ -62,9 +67,17 @@ function setupKeyboardControl() {
     }
     if (activeKeys.has(key)) return;
 
+    if (isManualPlayMode()) {
+      manualPlayNextNote(127, key); // ⭐ 播放下一組音
+      setManualTriggerKey(key); // ⭐ 記錄這次是哪個按鍵觸發
+      activeKeys.add(key);
+      return;
+    }
+
     const noteOffset = keyToNoteOffset[key];
     if (noteOffset !== undefined) {
       const note = 12 * octaveOffset + noteOffset;
+
       const el = document.querySelector(
         `#${activeKeyboardTargetId} [data-number="${note}"]`
       );
@@ -76,9 +89,21 @@ function setupKeyboardControl() {
 
   window.addEventListener("keyup", (e) => {
     const key = e.key.toLowerCase();
+
+    if (isManualPlayMode()) {
+      // ⭐ 只有當放開的鍵是觸發鍵才停止音
+      if (key === getManualTriggerKey()) {
+        stopManualNotes();
+        setManualTriggerKey(null); // 重置觸發鍵
+      }
+      activeKeys.delete(key);
+      return;
+    }
+
     const noteOffset = keyToNoteOffset[key];
     if (noteOffset !== undefined) {
       const note = 12 * octaveOffset + noteOffset;
+
       const el = document.querySelector(
         `#${activeKeyboardTargetId} [data-number="${note}"]`
       );
@@ -171,44 +196,54 @@ function updateAllMidiSelects() {
 }
 
 async function main() {
+  let midiError = null;
   try {
     midiAccess = await navigator.requestMIDIAccess();
     await updateMidiInputs();
 
-    renderPiano(document.getElementById("piano"), "piano", midiInputs);
-
-    // ⭐ 更新 pianoRenderer 裡的 midiInputs
-    updateLatestMidiInputs(midiInputs);
-
-    document
-      .querySelector(`#auto-play-piano`)
-      .addEventListener("click", () => autoPlayPiano("piano"));
-    document
-      .querySelector(`#piano .delete-btn`)
-      .addEventListener("click", () => {
-        document.getElementById("piano").remove();
-        cleanupPianoState("piano");
-      });
-
-    document
-      .getElementById("add-piano-btn")
-      .addEventListener("click", () => addPiano());
-
-    document.getElementById("piano").addEventListener("pointerdown", () => {
-      activeKeyboardTargetId = "piano";
-    });
-
-    // 🔥 裝置插拔
+    // 裝置插拔
     midiAccess.onstatechange = async (e) => {
       console.log("MIDI 裝置變化:", e.port.name, e.port.state);
       await updateMidiInputs();
       updateAllMidiSelects();
-      updateLatestMidiInputs(midiInputs); // ⭐ 同步更新 pianoRenderer 的裝置列表
+      updateLatestMidiInputs(midiInputs);
     };
-
-    setupKeyboardControl();
   } catch (err) {
-    alert("無法取得 MIDI 裝置：" + err);
+    midiError = err;
+    console.warn("無法取得 MIDI 裝置，將以純鍵盤模式運作：", err);
+    midiInputs = []; // 保證是空陣列
+  }
+
+  // ⭐ 不管有沒有 MIDI，照樣 render 鋼琴
+  renderPiano(document.getElementById("piano"), "piano", midiInputs);
+
+  updateLatestMidiInputs(midiInputs);
+
+  document
+    .querySelector(`#auto-play-piano`)
+    .addEventListener("click", () => autoPlayPiano("piano"));
+  document
+    .querySelector(`#piano .delete-btn`)
+    .addEventListener("click", () => {
+      document.getElementById("piano").remove();
+      cleanupPianoState("piano");
+    });
+
+  document
+    .getElementById("add-piano-btn")
+    .addEventListener("click", () => addPiano());
+
+  document.getElementById("piano").addEventListener("pointerdown", () => {
+    activeKeyboardTargetId = "piano";
+  });
+
+  setupKeyboardControl();
+
+  // 如果是 MIDI 錯誤，友善通知，但不阻止操作
+  if (midiError) {
+    const errorLog = document.getElementById("error-log");
+    errorLog.textContent =
+      "⚠ 無法取得 MIDI 裝置，已切換為純鍵盤／滑鼠模式。";
   }
 }
 
