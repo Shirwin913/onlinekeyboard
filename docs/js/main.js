@@ -18,11 +18,17 @@ import {
   setCurrentMidiAndTarget,
   setManualPlayMode,
   isManualPlayMode,
+<<<<<<< HEAD
   manualPlayNextNote,
   stopManualNotes,
   setManualTriggerKey, // ⭐ 要加
   getManualTriggerKey, // ⭐ 要加
 } from "./midiplayer.js";
+=======
+  manualPlayNextNote, // ⭐ 要加
+  stopManualNotes, // ⭐ 要加
+} from "./midiPlayer.js";
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
 
 let pianoCount = 1;
 let midiAccess = null;
@@ -71,8 +77,12 @@ function setupKeyboardControl() {
     if (activeKeys.has(key)) return;
 
     if (isManualPlayMode()) {
+<<<<<<< HEAD
       manualPlayNextNote(127, key);
       setManualTriggerKey(key);
+=======
+      manualPlayNextNote(127, key); // ⭐ 把 key 傳進去
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
       activeKeys.add(key);
       return;
     }
@@ -81,6 +91,7 @@ function setupKeyboardControl() {
     if (noteOffset !== undefined) {
       const note = 12 * octaveOffset + noteOffset;
 
+<<<<<<< HEAD
       // 🔍 檢查是否有音檔（藍/紅鍵顯示）
       const sound = soundSettings[activeKeyboardTargetId]?.sound;
       const bufferMap = audioBuffers[activeKeyboardTargetId]?.[sound];
@@ -91,6 +102,12 @@ function setupKeyboardControl() {
 
       setKeyVisualState(activeKeyboardTargetId, note, hasBuffer);
 
+=======
+      const el = document.querySelector(
+        `#${activeKeyboardTargetId} [data-number="${note}"]`
+      );
+      if (el) el.classList.add("pressed");
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
       playSound(note, activeKeyboardTargetId, 127);
       activeKeys.add(key);
     }
@@ -100,10 +117,14 @@ function setupKeyboardControl() {
     const key = e.key.toLowerCase();
 
     if (isManualPlayMode()) {
+<<<<<<< HEAD
       if (key === getManualTriggerKey()) {
         stopManualNotes();
         setManualTriggerKey(null);
       }
+=======
+      stopManualNotes(key); // ⭐ 只停止這個 key 的音
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
       activeKeys.delete(key);
       return;
     }
@@ -112,7 +133,14 @@ function setupKeyboardControl() {
     if (noteOffset !== undefined) {
       const note = 12 * octaveOffset + noteOffset;
 
+<<<<<<< HEAD
       clearKeyVisualState(activeKeyboardTargetId, note);
+=======
+      const el = document.querySelector(
+        `#${activeKeyboardTargetId} [data-number="${note}"]`
+      );
+      if (el) el.classList.remove("pressed");
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
       stopSound(note, activeKeyboardTargetId);
       activeKeys.delete(key);
     }

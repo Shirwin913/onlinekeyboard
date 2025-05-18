@@ -28,7 +28,19 @@ async function loadAudioFilesForSound(pid, sound) {
   if (!sharedBuffers[sound]) {
     sharedBuffers[sound] = new Map();
     const promises = Object.entries(noteMapping).map(async ([note, num]) => {
+<<<<<<< HEAD
       const ext = "mp3"; // ⭐ 改為一律使用 mp3
+=======
+      let ext = "mp3";
+      if (
+        sound === "piano" ||
+        sound === "pipeorgan" ||
+        sound === "cello" ||
+        sound === "cello-1"
+      ) {
+        ext = "wav";
+      }
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
       try {
         const res = await fetch(`./samples/${sound}/piano_${note}.${ext}`);
         if (!res.ok) throw new Error(`找不到檔案 piano_${note}.${ext}`);
@@ -37,6 +49,10 @@ async function loadAudioFilesForSound(pid, sound) {
         sharedBuffers[sound].set(num, buf);
       } catch (e) {
         console.warn(`載入 ${sound} 的 piano_${note}.${ext} 失敗：`, e);
+<<<<<<< HEAD
+=======
+        // 沒有這個音就跳過
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
       }
     });
     await Promise.all(promises);
@@ -96,10 +112,14 @@ function playSound(note, pid, velocity) {
 function stopSound(note, pid) {
   const sound = soundSettings[pid]?.sound;
 
+<<<<<<< HEAD
   if (
     (sound === "cello" || sound === "violin" || sound === "Trombone") &&
     soundSettings[pid].sustain
   ) {
+=======
+  if (sound === "cello" && soundSettings[pid].sustain) {
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
     stopPolyCelloNote(note, pid);
     return;
   }
@@ -109,7 +129,11 @@ function stopSound(note, pid) {
     const { src, gainNode } = obj;
 
     try {
+<<<<<<< HEAD
       const fadeTime = 0.3;
+=======
+      const fadeTime = 0.3; // 100ms fade-out
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
       const now = audioCtx.currentTime;
 
       if (gainNode) {
@@ -126,11 +150,32 @@ function stopSound(note, pid) {
   }
 }
 
+<<<<<<< HEAD
 // Equal power crossfade curve function (better than linear crossfade)
 function equalPowerCrossfade(x) {
   // Where x goes from 0 to 1, this returns values for fading out the first sound
   // For the second sound's volume, use 1-x as input
   return Math.cos(x * Math.PI / 2);
+=======
+// ----- Cello Polyphonic Cross-Fade 播放 -----
+
+function findZeroCrossing(buffer, startTime, searchWidth = 0.5) {
+  const channelData = buffer.getChannelData(0);
+  const sampleRate = buffer.sampleRate;
+  const startSample = Math.floor(startTime * sampleRate);
+  const endSample = Math.min(
+    channelData.length - 1,
+    Math.floor((startTime + searchWidth) * sampleRate)
+  );
+
+  for (let i = startSample; i < endSample - 1; i++) {
+    if (channelData[i] <= 0 && channelData[i + 1] > 0) {
+      return i / sampleRate;
+    }
+  }
+
+  return startTime;
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
 }
 
 function playPolyCelloNote(note, pid, velocity) {
@@ -146,6 +191,7 @@ function playPolyCelloNote(note, pid, velocity) {
 
   const nodes = polySources[pid][note];
 
+<<<<<<< HEAD
   // Analyze buffer to find better loop points
   // For this version we'll use more conservative values based on experimentation
   const bufferDuration = buffer.duration;
@@ -168,6 +214,12 @@ function playPolyCelloNote(note, pid, velocity) {
   const pitchVariation = 1.0 + (Math.random() * 0.001 - 0.0005); // ±0.05% pitch variation
   
   // A segment - initial attack portion
+=======
+  const defaultStart = 2.5;
+  const loopStart = findZeroCrossing(buffer, defaultStart, 0.5);
+  const loopEnd = buffer.duration;
+
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
   const srcA = audioCtx.createBufferSource();
   srcA.buffer = buffer;
   srcA.playbackRate.value = pitchVariation;
@@ -188,7 +240,10 @@ function playPolyCelloNote(note, pid, velocity) {
     return;
   }
 
+<<<<<<< HEAD
   // B segment (loop)
+=======
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
   const srcB = audioCtx.createBufferSource();
   srcB.buffer = buffer;
   srcB.loop = true;
@@ -211,6 +266,7 @@ function playPolyCelloNote(note, pid, velocity) {
   const startTimeB = audioCtx.currentTime + loopStart - 0.05; // Overlap slightly
   srcB.start(startTimeB, loopStart);
 
+<<<<<<< HEAD
   // Use equal power crossfade curve for more natural transition
   const steps = 50; // For smoother curve approximation
   const now = audioCtx.currentTime;
@@ -235,6 +291,15 @@ function playPolyCelloNote(note, pid, velocity) {
   // Final cleanup after crossfade
   gainA.gain.setValueAtTime(0, startTimeB + crossfadeDuration + 0.01);
   
+=======
+  const FADE = 0.5;
+  gainA.gain.setValueAtTime(volume, startTimeB - 0.05);
+  gainA.gain.linearRampToValueAtTime(0, startTimeB + FADE);
+
+  gainB.gain.setValueAtTime(0, startTimeB - 0.05);
+  gainB.gain.linearRampToValueAtTime(volume, startTimeB + FADE);
+
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
   nodes.A = { src: srcA, gain: gainA };
   nodes.B = { src: srcB, gain: gainB };
 }
@@ -246,6 +311,7 @@ function stopPolyCelloNote(note, pid) {
   const now = audioCtx.currentTime;
 
   ["A", "B"].forEach((k) => {
+<<<<<<< HEAD
     const entry = nodes[k];
     if (!entry) return;
 
@@ -262,6 +328,25 @@ function stopPolyCelloNote(note, pid) {
       src.stop(now + fadeOutTime + 0.01);
     } catch (e) {
       try { src.stop(); } catch {}
+=======
+    if (nodes[k]) {
+      const { src, gain } = nodes[k];
+      try {
+        const fadeTime = 0.1;
+        const now = audioCtx.currentTime;
+
+        const startGain = Math.max(gain.gain.value, 0.0001);
+        gain.gain.setValueAtTime(startGain, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + fadeTime);
+        src.stop(now + fadeTime + 0.02);
+      } catch (e) {
+        try {
+          src.stop();
+        } catch {}
+      }
+
+      nodes[k] = null;
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
     }
 
     nodes[k] = null;

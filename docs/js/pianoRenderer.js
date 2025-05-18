@@ -80,6 +80,7 @@ function renderPiano(container, pid, midiInputs) {
 
     key.addEventListener("pointerdown", () => {
       if (isManualPlayMode()) {
+<<<<<<< HEAD
         manualPlayNextNote(127, num);
       } else {
         const sound = soundSettings[pid]?.sound;
@@ -108,16 +109,43 @@ function renderPiano(container, pid, midiInputs) {
           key.classList.add("no-sound-pressed"); // 🔴 紅色
         }
 
+=======
+        // ⭐ 手動播放：不變色，只觸發下一組音符
+        manualPlayNextNote(127, num);
+      } else {
+        // 一般播放：變色+播放音
+        key.classList.add("pressed");
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
         playSound(num, pid, 127);
       }
     });
 
+<<<<<<< HEAD
     ["pointerup", "pointerleave", "pointercancel"].forEach((event) => {
       key.addEventListener(event, () => {
         key.classList.remove("pressed");
         key.classList.remove("no-sound-pressed");
         if (!isManualPlayMode()) stopSound(num, pid);
       });
+=======
+    key.addEventListener("pointerup", () => {
+      if (isManualPlayMode()) {
+        // 手動播放：停止這組音符
+        stopManualNotes();
+      } else {
+        // 一般播放：移除變色+停止音
+        key.classList.remove("pressed");
+        stopSound(num, pid);
+      }
+    });
+
+    // 防止滑鼠離開還保留 pressed 樣式（一般模式有效）
+    key.addEventListener("pointerleave", () => {
+      if (!isManualPlayMode()) key.classList.remove("pressed");
+    });
+    key.addEventListener("pointercancel", () => {
+      if (!isManualPlayMode()) key.classList.remove("pressed");
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
     });
   });
 
@@ -135,7 +163,11 @@ function renderPiano(container, pid, midiInputs) {
       togglePianoKeys(pid, true);
 
       const sustainBtn = container.querySelector(`#sustain-${pid}`);
+<<<<<<< HEAD
       if (sound === "cello" || sound === "cello-1" || sound === "violin" || sound === "Trombone") {
+=======
+      if (sound === "cello" || sound === "cello-1") {
+>>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
         soundSettings[pid].sustain = true;
         sustainBtn.style.display = "none";
       } else {
