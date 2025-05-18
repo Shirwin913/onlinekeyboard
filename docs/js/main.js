@@ -22,7 +22,7 @@ import {
   stopManualNotes,
   setManualTriggerKey, // ⭐ 要加
   getManualTriggerKey, // ⭐ 要加
-} from "./midiPlayer.js";
+} from "./midiplayer.js";
 
 let pianoCount = 1;
 let midiAccess = null;
@@ -53,6 +53,9 @@ const activeKeys = new Set();
 let activeKeyboardTargetId = "piano";
 let octaveOffset = 4;
 
+import { audioBuffers } from "./audioManager.js";
+import { setKeyVisualState, clearKeyVisualState } from "./pianoRenderer.js";
+
 function setupKeyboardControl() {
   window.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
@@ -68,8 +71,8 @@ function setupKeyboardControl() {
     if (activeKeys.has(key)) return;
 
     if (isManualPlayMode()) {
-      manualPlayNextNote(127, key); // ⭐ 播放下一組音
-      setManualTriggerKey(key); // ⭐ 記錄這次是哪個按鍵觸發
+      manualPlayNextNote(127, key);
+      setManualTriggerKey(key);
       activeKeys.add(key);
       return;
     }
@@ -78,10 +81,16 @@ function setupKeyboardControl() {
     if (noteOffset !== undefined) {
       const note = 12 * octaveOffset + noteOffset;
 
-      const el = document.querySelector(
-        `#${activeKeyboardTargetId} [data-number="${note}"]`
-      );
-      if (el) el.classList.add("pressed");
+      // 🔍 檢查是否有音檔（藍/紅鍵顯示）
+      const sound = soundSettings[activeKeyboardTargetId]?.sound;
+      const bufferMap = audioBuffers[activeKeyboardTargetId]?.[sound];
+      const hasBuffer =
+        bufferMap instanceof Map
+          ? bufferMap.has(note)
+          : bufferMap?.[note] !== undefined;
+
+      setKeyVisualState(activeKeyboardTargetId, note, hasBuffer);
+
       playSound(note, activeKeyboardTargetId, 127);
       activeKeys.add(key);
     }
@@ -91,10 +100,9 @@ function setupKeyboardControl() {
     const key = e.key.toLowerCase();
 
     if (isManualPlayMode()) {
-      // ⭐ 只有當放開的鍵是觸發鍵才停止音
       if (key === getManualTriggerKey()) {
         stopManualNotes();
-        setManualTriggerKey(null); // 重置觸發鍵
+        setManualTriggerKey(null);
       }
       activeKeys.delete(key);
       return;
@@ -104,10 +112,7 @@ function setupKeyboardControl() {
     if (noteOffset !== undefined) {
       const note = 12 * octaveOffset + noteOffset;
 
-      const el = document.querySelector(
-        `#${activeKeyboardTargetId} [data-number="${note}"]`
-      );
-      if (el) el.classList.remove("pressed");
+      clearKeyVisualState(activeKeyboardTargetId, note);
       stopSound(note, activeKeyboardTargetId);
       activeKeys.delete(key);
     }
@@ -222,12 +227,10 @@ async function main() {
   document
     .querySelector(`#auto-play-piano`)
     .addEventListener("click", () => autoPlayPiano("piano"));
-  document
-    .querySelector(`#piano .delete-btn`)
-    .addEventListener("click", () => {
-      document.getElementById("piano").remove();
-      cleanupPianoState("piano");
-    });
+  document.querySelector(`#piano .delete-btn`).addEventListener("click", () => {
+    document.getElementById("piano").remove();
+    cleanupPianoState("piano");
+  });
 
   document
     .getElementById("add-piano-btn")
@@ -242,8 +245,7 @@ async function main() {
   // 如果是 MIDI 錯誤，友善通知，但不阻止操作
   if (midiError) {
     const errorLog = document.getElementById("error-log");
-    errorLog.textContent =
-      "⚠ 無法取得 MIDI 裝置，已切換為純鍵盤／滑鼠模式。";
+    errorLog.textContent = "⚠ 無法取得 MIDI 裝置，已切換為純鍵盤／滑鼠模式。";
   }
 }
 

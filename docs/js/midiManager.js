@@ -6,7 +6,10 @@ import {
   stopManualNotes,
   setManualTriggerKey,
   getManualTriggerKey,
-} from "./midiPlayer.js";
+} from "./midiplayer.js";
+
+import { setKeyVisualState, clearKeyVisualState } from "./pianoRenderer.js";
+import { audioBuffers, soundSettings } from "./audioManager.js";
 
 import { playSound, stopSound } from "./audioManager.js";
 
@@ -31,8 +34,8 @@ function onMIDIMessage(event, pianoId) {
 
       if (!manualPlayLock) {
         manualPlayLock = true;
-        manualPlayNextNote(velocity, note);  // ⭐ 傳入是哪顆鍵觸發
-        setManualTriggerKey(note);           // ⭐ 記錄這次是哪顆鍵
+        manualPlayNextNote(velocity, note); // ⭐ 傳入是哪顆鍵觸發
+        setManualTriggerKey(note); // ⭐ 記錄這次是哪顆鍵
         manualPlayLockTimeout = setTimeout(() => {
           manualPlayLock = false;
         }, 100);
@@ -60,10 +63,17 @@ function onMIDIMessage(event, pianoId) {
   if (!keyEl) return;
 
   if (status === 144 && velocity > 0) {
-    keyEl.classList.add("pressed");
+    const sound = soundSettings[pianoId]?.sound;
+    const bufferMap = audioBuffers[pianoId]?.[sound];
+    const hasBuffer =
+      bufferMap instanceof Map
+        ? bufferMap.has(note)
+        : bufferMap?.[note] !== undefined;
+
+    setKeyVisualState(pianoId, note, hasBuffer);
     playSound(note, pianoId, velocity);
   } else if (status === 128 || (status === 144 && velocity === 0)) {
-    keyEl.classList.remove("pressed");
+    clearKeyVisualState(pianoId, note);
     stopSound(note, pianoId);
   }
 }

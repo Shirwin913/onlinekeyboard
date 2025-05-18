@@ -4,6 +4,7 @@ import {
   loadAudioFilesForSound,
   soundSettings,
   allAudioLoaded,
+  audioBuffers,
 } from "./audioManager.js";
 import { availableSounds, layout, noteMapping } from "./utils/constants.js";
 import { listenEvent } from "./midiManager.js";
@@ -79,32 +80,44 @@ function renderPiano(container, pid, midiInputs) {
 
     key.addEventListener("pointerdown", () => {
       if (isManualPlayMode()) {
-        // ⭐ 手動播放：不變色，只觸發下一組音符
         manualPlayNextNote(127, num);
       } else {
-        // 一般播放：變色+播放音
-        key.classList.add("pressed");
+        const sound = soundSettings[pid]?.sound;
+
+        // ✅ 音色尚未載入完成，不處理
+        if (!allAudioLoaded[pid]?.[sound]) {
+          console.warn(`⏳ 音色 ${sound} 尚未載入完成，略過按鍵觸發`);
+          return;
+        }
+
+        const bufferMap = audioBuffers[pid]?.[sound];
+        let hasBuffer = false;
+
+        // ✅ 支援 Map 也支援 Object 的 hasBuffer 判斷
+        if (bufferMap instanceof Map) {
+          hasBuffer = bufferMap.has(num);
+        } else if (bufferMap && typeof bufferMap === "object") {
+          hasBuffer = bufferMap[num] !== undefined;
+        }
+
+        console.log(`🎹 note=${num} hasBuffer=${hasBuffer}`);
+
+        if (hasBuffer) {
+          key.classList.add("pressed"); // 🔵 藍色
+        } else {
+          key.classList.add("no-sound-pressed"); // 🔴 紅色
+        }
+
         playSound(num, pid, 127);
       }
     });
 
-    key.addEventListener("pointerup", () => {
-      if (isManualPlayMode()) {
-        // 手動播放：停止這組音符
-        stopManualNotes();
-      } else {
-        // 一般播放：移除變色+停止音
+    ["pointerup", "pointerleave", "pointercancel"].forEach((event) => {
+      key.addEventListener(event, () => {
         key.classList.remove("pressed");
-        stopSound(num, pid);
-      }
-    });
-
-    // 防止滑鼠離開還保留 pressed 樣式（一般模式有效）
-    key.addEventListener("pointerleave", () => {
-      if (!isManualPlayMode()) key.classList.remove("pressed");
-    });
-    key.addEventListener("pointercancel", () => {
-      if (!isManualPlayMode()) key.classList.remove("pressed");
+        key.classList.remove("no-sound-pressed");
+        if (!isManualPlayMode()) stopSound(num, pid);
+      });
     });
   });
 
@@ -122,7 +135,7 @@ function renderPiano(container, pid, midiInputs) {
       togglePianoKeys(pid, true);
 
       const sustainBtn = container.querySelector(`#sustain-${pid}`);
-      if (sound === "cello" || sound === "cello-1") {
+      if (sound === "cello" || sound === "cello-1" || sound === "violin" || sound === "Trombone") {
         soundSettings[pid].sustain = true;
         sustainBtn.style.display = "none";
       } else {
@@ -154,6 +167,9 @@ function renderPiano(container, pid, midiInputs) {
 
   loadAudioFilesForSound(pid, soundSettings[pid].sound).then(() => {
     togglePianoKeys(pid, true);
+
+    // ⭐ 新增這行：初始化時綁定 All Inputs（index = -1）
+    listenEvent(latestMidiInputs, -1, pid);
   });
 }
 
@@ -162,4 +178,19 @@ function updateLatestMidiInputs(newInputs) {
   latestMidiInputs = newInputs;
 }
 
-export { renderPiano, updateLatestMidiInputs };
+function setKeyVisualState(pid, note, hasBuffer) {
+  const key = document.querySelector(`#${pid} [data-number="${note}"]`);
+  if (!key) return;
+  if (hasBuffer) key.classList.add("pressed");
+  else key.classList.add("no-sound-pressed");
+}
+
+function clearKeyVisualState(pid, note) {
+  const key = document.querySelector(`#${pid} [data-number="${note}"]`);
+  if (!key) return;
+  key.classList.remove("pressed");
+  key.classList.remove("no-sound-pressed");
+}
+
+export { renderPiano, updateLatestMidiInputs, setKeyVisualState, clearKeyVisualState };
+

@@ -1,8 +1,13 @@
-import { playSound, stopSound } from "./audioManager.js";
-let previousManualNotes = []; // 紀錄上次播放的音符
-let previousTriggerKey = null; // ⭐ 新增：記錄哪顆鍵觸發
+import {
+  playSound,
+  stopSound,
+  soundSettings,
+  stopPolyCelloNote,
+} from "./audioManager.js";
 
-let currentMidi = null;
+let previousTriggerKey = null;
+
+let currentMidi = null; // current midi files
 let pianoTarget = null;
 let startTime = 0;
 let pauseTime = 0;
@@ -25,6 +30,7 @@ function initAudioContext() {
   }
 }
 
+// midi parser
 function parseMidiFile(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -37,6 +43,7 @@ function parseMidiFile(file) {
   });
 }
 
+// load midi files, "midi" is a SMF
 function playMidi(midi, pianoId) {
   stopMidiPlayback();
   initAudioContext();
@@ -51,7 +58,6 @@ function playMidi(midi, pianoId) {
   activeNotes.clear();
 
   prepareManualTimeList();
-
   scheduleAllNotes();
 }
 
@@ -71,7 +77,6 @@ function scheduleAllNotes() {
         stopSound(midiNumber, pianoTarget);
         playSound(midiNumber, pianoTarget, actualVelocity);
         activeNotes.add(midiNumber);
-
         const keyEl = document.querySelector(
           `#${pianoTarget} [data-number="${midiNumber}"]`
         );
@@ -194,43 +199,75 @@ function prepareManualTimeList() {
   manualTimeList = Array.from(times).sort((a, b) => a - b);
 }
 
+
+//--------------
+// manual play
+//--------------
+// press keyboard
 function manualPlayNextNote(velocity, triggeringNote) {
-  if (!currentMidi) {
-    alert("請先載入 MIDI 檔！");
+  if (!currentMidi || !pianoTarget)
     return;
+
+  if (manualTimeList.length === 0) 
+    prepareManualTimeList();
+    
+  if (manualTimeIndex >= manualTimeList.length) {
+    manualTimeIndex = 0;
+    // reset virtual piano keyboard
+    for (var midiNumber = 21; midiNumber <= 108; midiNumber++) {
+      const sound = soundSettings[pianoTarget]?.sound;
+      const sustain = soundSettings[pianoTarget]?.sustain;
+      const usePoly = sustain && ["cello", "violin", "Trombone"].includes(sound);
+
+      if (usePoly) {
+        stopPolyCelloNote(midiNumber, pianoTarget);
+      } else {
+        stopSound(midiNumber, pianoTarget);
+      }
+
+      const keyEl = document.querySelector(
+        `#${pianoTarget} [data-number="${midiNumber}"]`
+      );
+      if (keyEl) keyEl.classList.remove("pressed");
+    }
   }
-  if (!pianoTarget) {
-    alert("沒有找到目標鋼琴！");
-    return;
-  }
+    
+  // time set
+  const targetTime = manualTimeList[manualTimeIndex];
+  const previousTime = manualTimeList[manualTimeIndex-1];
+  manualTimeIndex++;
+  // note to play & end
+  const notesToPlay = [];
+  const notesToEnd = [];
+  currentMidi.tracks.forEach((track) => {
+    track.notes.forEach((note) => {
+      if (note.time === targetTime) 
+        notesToPlay.push(note);
+      if (((note.time + note.duration) <= targetTime) && 
+          ((note.time + note.duration) >= previousTime)) 
+        notesToEnd.push(note);
+    });
+  });
+  // 1. noteoff that can noteoff
+  notesToEnd.forEach((note) => {
+    const midiNumber = note.midi;
 
-  if (manualTimeList.length === 0) prepareManualTimeList();
-  if (manualTimeIndex >= manualTimeList.length) manualTimeIndex = 0;
+    const sound = soundSettings[pianoTarget]?.sound;
+    const sustain = soundSettings[pianoTarget]?.sustain;
+    const usePoly = sustain && ["cello", "violin", "Trombone"].includes(sound);
 
-  const targetTime = manualTimeList[manualTimeIndex++];
+    if (usePoly) {
+      stopPolyCelloNote(midiNumber, pianoTarget);
+    } else {
+      stopSound(midiNumber, pianoTarget);
+    }
 
-  // ---- 1️⃣ 先停止上一次的音 ----
-  previousManualNotes.forEach((midiNumber) => {
-    stopSound(midiNumber, pianoTarget);
     const keyEl = document.querySelector(
       `#${pianoTarget} [data-number="${midiNumber}"]`
     );
     if (keyEl) keyEl.classList.remove("pressed");
   });
-  previousManualNotes = [];
-
-  // ---- 2️⃣ 播放這次的音 ----
-  const notesToPlay = [];
-  currentMidi.tracks.forEach((track) => {
-    track.notes.forEach((note) => {
-      if (note.time === targetTime) notesToPlay.push(note);
-    });
-  });
-
-  if (notesToPlay.length === 0) {
-    alert("找不到下一個音符，可能是 MIDI 檔案太短或已播放完。");
-  }
-
+  // 2. noteon!
   notesToPlay.forEach((note) => {
     const midiNumber = note.midi;
     const actualVelocity = Math.min(velocity * globalVelocityMultiplier, 127);
@@ -241,12 +278,49 @@ function manualPlayNextNote(velocity, triggeringNote) {
       `#${pianoTarget} [data-number="${midiNumber}"]`
     );
     if (keyEl) keyEl.classList.add("pressed");
-
-    previousManualNotes.push(midiNumber);
   });
 
-  // ⭐ 紀錄這次是哪顆鍵觸發
   previousTriggerKey = triggeringNote;
+}
+
+// release keyboard
+function stopManualNotes() {
+  const targetTime = manualTimeList[manualTimeIndex];
+  const previousTime = manualTimeList[manualTimeIndex-1];
+  const notesToEnd = [];
+  currentMidi.tracks.forEach((track) => {
+    track.notes.forEach((note) => {
+      if (((note.time + note.duration) <= targetTime) && 
+          ((note.time + note.duration) >= previousTime)) 
+        notesToEnd.push(note);
+    });
+  });
+
+  notesToEnd.forEach((note) => {
+    const midiNumber = note.midi;
+
+    const sound = soundSettings[pianoTarget]?.sound;
+    const sustain = soundSettings[pianoTarget]?.sustain;
+    const usePoly = sustain && ["cello", "violin", "Trombone"].includes(sound);
+
+    if (usePoly) {
+      stopPolyCelloNote(midiNumber, pianoTarget);
+    } else {
+      stopSound(midiNumber, pianoTarget);
+    }
+
+    const keyEl = document.querySelector(
+      `#${pianoTarget} [data-number="${midiNumber}"]`
+    );
+    if (keyEl) keyEl.classList.remove("pressed");
+  });
+}
+
+function setManualTriggerKey(note) {
+  previousTriggerKey = note;
+}
+function getManualTriggerKey() {
+  return previousTriggerKey;
 }
 
 function setManualPlayMode(mode) {
@@ -264,28 +338,6 @@ function setCurrentMidiAndTarget(midi, pianoId) {
   prepareManualTimeList();
 }
 
-function stopManualNotes() {
-  previousManualNotes.forEach((midiNumber) => {
-    // 延遲 0.5 秒再停止
-    setTimeout(() => {
-      stopSound(midiNumber, pianoTarget);
-      const keyEl = document.querySelector(
-        `#${pianoTarget} [data-number="${midiNumber}"]`
-      );
-      if (keyEl) keyEl.classList.remove("pressed");
-    }, 110); // 500ms 延遲
-  });
-  previousManualNotes = [];
-}
-
-function setManualTriggerKey(note) {
-  previousTriggerKey = note;
-}
-
-function getManualTriggerKey() {
-  return previousTriggerKey;
-}
-
 export {
   parseMidiFile,
   playMidi,
@@ -301,4 +353,5 @@ export {
   stopManualNotes,
   setManualTriggerKey,
   getManualTriggerKey,
+  stopPolyCelloNote, // ✅ 加上這行
 };
