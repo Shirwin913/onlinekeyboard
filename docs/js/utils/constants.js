@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 export const availableSounds = ["piano", "pipeorgan", "cello", "cello-1", "violin", "Trombone"];
-=======
-export const availableSounds = ["piano", "pipeorgan", "cello", "cello-1"];
->>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
 
 export const layout = [
   [0, false],

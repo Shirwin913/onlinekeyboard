@@ -199,7 +199,6 @@ function prepareManualTimeList() {
   manualTimeList = Array.from(times).sort((a, b) => a - b);
 }
 
-<<<<<<< HEAD
 
 //--------------
 // manual play
@@ -208,20 +207,6 @@ function prepareManualTimeList() {
 function manualPlayNextNote(velocity, triggeringNote) {
   if (!currentMidi || !pianoTarget)
     return;
-=======
-function manualPlayNextNote(velocity, triggeringNote) {
-  if (!currentMidi) {
-    alert("請先載入 MIDI 檔！");
-    return;
-  }
-  if (!pianoTarget) {
-    alert("沒有找到目標鋼琴！");
-    return;
-  }
-
-  if (manualTimeList.length === 0) prepareManualTimeList();
-  if (manualTimeIndex >= manualTimeList.length) manualTimeIndex = 0;
->>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
 
   if (manualTimeList.length === 0) 
     prepareManualTimeList();
@@ -282,24 +267,7 @@ function manualPlayNextNote(velocity, triggeringNote) {
     );
     if (keyEl) keyEl.classList.remove("pressed");
   });
-<<<<<<< HEAD
   // 2. noteon!
-=======
-  previousManualNotes = [];
-
-  // ---- 2️⃣ 播放這次的音 ----
-  const notesToPlay = [];
-  currentMidi.tracks.forEach((track) => {
-    track.notes.forEach((note) => {
-      if (note.time === targetTime) notesToPlay.push(note);
-    });
-  });
-
-  if (notesToPlay.length === 0) {
-    alert("找不到下一個音符，可能是 MIDI 檔案太短或已播放完。");
-  }
-
->>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
   notesToPlay.forEach((note) => {
     const midiNumber = note.midi;
     const actualVelocity = Math.min(velocity * globalVelocityMultiplier, 127);
@@ -315,7 +283,6 @@ function manualPlayNextNote(velocity, triggeringNote) {
   previousTriggerKey = triggeringNote;
 }
 
-<<<<<<< HEAD
 // release keyboard
 function stopManualNotes() {
   const targetTime = manualTimeList[manualTimeIndex];
@@ -356,8 +323,6 @@ function getManualTriggerKey() {
   return previousTriggerKey;
 }
 
-=======
->>>>>>> af45f80732b600bd29504fed18c6d8f4f9185b91
 function setManualPlayMode(mode) {
   manualPlayMode = mode;
   if (manualPlayMode && currentMidi) prepareManualTimeList();
